@@ -100,12 +100,23 @@
   #lb-msg{ min-height:14px; font-size:11px; letter-spacing:.04em; }
   #lb-msg.ok{ color:#7cf3a0; }
   #lb-msg.err{ color:#ff8da8; }
+
+  /* brand credit */
+  #credit{ position:fixed; right:clamp(12px,2vw,22px); bottom:clamp(12px,2vh,22px); z-index:6;
+    font:600 10px/1 ui-monospace,'SF Mono',Menlo,Consolas,monospace; letter-spacing:.18em; text-transform:uppercase;
+    color:rgba(255,255,255,0.55); text-decoration:none; pointer-events:auto;
+    background:rgba(255,255,255,0.06); -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,0.14); border-radius:9px; padding:7px 10px;
+    transition:color .2s ease, background .2s ease, border-color .2s ease; }
+  #credit:hover{ color:#ffffff; background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.30); }
+  @media (hover:none){ #credit{ font-size:9px; padding:6px 8px; } }
 </style>
 </head>
 <body>
   <canvas id="sky"></canvas>
   <div class="vignette"></div>
   <div id="cur"></div>
+  <a id="credit" class="ui" href="https://fantomlabs.io" target="_blank" rel="noopener">fantomlabs.io</a>
 
   <div id="hud">
     <div id="stats" class="ui">
@@ -167,6 +178,9 @@
     enableLeaderboard:true,          // show the leaderboard dock icon + modal
     prizeText:        'Top scores this month · monthly winner emailed a prize',
     apiEndpoint:      '/api/leaderboard', // backend route (optional; localStorage fallback otherwise)
+    showCredit:       true,               // small credit link, bottom-right
+    creditText:       'fantomlabs.io',
+    creditUrl:        'https://fantomlabs.io',
   };
   const CONFIG = Object.assign({}, DEFAULTS, (window.StarfieldPopConfig || {}));
   document.title = CONFIG.pageTitle;
@@ -768,6 +782,11 @@
   if (!CONFIG.enableLeaderboard && lbBtn) lbBtn.style.display = 'none';
   const dockEl = document.getElementById('dock');
   if (dockEl && !CONFIG.enableStats && !CONFIG.enableLeaderboard) dockEl.style.display = 'none';
+  const creditEl = document.getElementById('credit');
+  if (creditEl) {
+    if (CONFIG.showCredit) { creditEl.textContent = CONFIG.creditText; creditEl.href = CONFIG.creditUrl; }
+    else creditEl.style.display = 'none';
+  }
 
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
