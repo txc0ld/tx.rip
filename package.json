@@ -1,0 +1,10 @@
+{
+  "name": "tx-rip",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "tx.rip — interactive starfield pop game with a monthly leaderboard",
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4"
+  }
+}

@@ -19,19 +19,89 @@
     transition:opacity .4s ease; opacity:0; }
   @media (hover:none){ body{ cursor:auto } #cur{ display:none } }
 
+  /* bottom-left HUD: stats panel stacked above the leaderboard button */
+  #hud{ position:fixed; left:clamp(14px,2.5vw,28px); bottom:clamp(14px,2.5vh,28px); z-index:5;
+    display:flex; flex-direction:column; gap:12px; align-items:flex-start; pointer-events:none; }
+
   /* pop stats panel */
-  #stats{ position:fixed; left:clamp(14px,2.5vw,28px); bottom:clamp(14px,2.5vh,28px); z-index:5;
-    font:11px/1.55 ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+  #stats{ font:11px/1.55 ui-monospace,'SF Mono',Menlo,Consolas,monospace;
     letter-spacing:.12em; text-transform:uppercase; color:#e7c7e0;
     background:rgba(22,6,20,0.55); -webkit-backdrop-filter:blur(7px); backdrop-filter:blur(7px);
-    border:1px solid rgba(255,62,230,0.38); border-radius:11px; padding:12px 15px; min-width:158px;
+    border:1px solid rgba(255,62,230,0.38); border-radius:11px; padding:12px 15px; min-width:172px;
     opacity:0; transform:translateY(10px); transition:opacity .45s ease, transform .45s cubic-bezier(.16,1,.3,1);
     pointer-events:none; }
-  #stats.show{ opacity:1; transform:none; }
-  #stats .title{ color:#ff3ee6; letter-spacing:.26em; font-size:10px; opacity:.9; margin-bottom:9px; }
+  #stats.show{ opacity:1; transform:none; pointer-events:auto; }
+  #stats .shead{ display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:9px; }
+  #stats .title{ color:#ff3ee6; letter-spacing:.26em; font-size:10px; opacity:.9; }
+  #stats .min{ cursor:pointer; color:#ff3ee6; background:transparent;
+    border:1px solid rgba(255,62,230,0.38); border-radius:6px; width:20px; height:18px;
+    font:700 13px/1 ui-monospace,monospace; display:flex; align-items:center; justify-content:center;
+    transition:background .2s ease; }
+  #stats .min:hover{ background:rgba(255,62,230,0.18); }
+  #stats .sbody{ overflow:hidden; transition:max-height .35s ease, opacity .3s ease; max-height:160px; opacity:1; }
+  #stats.min-collapsed .sbody{ max-height:0; opacity:0; }
   #stats .srow{ display:flex; justify-content:space-between; gap:22px; }
-  #stats .srow span{ color:#8a6f86; }
+  #stats .srow span{ color:#ffffff; }
   #stats b{ color:#ff3ee6; font-weight:700; }
+  #stats b.stars{ color:#ffd36b; letter-spacing:.06em; }
+
+  /* leaderboard button */
+  #lb-btn{ pointer-events:auto; cursor:pointer; width:48px; height:48px; border-radius:13px;
+    display:flex; align-items:center; justify-content:center;
+    background:rgba(22,6,20,0.55); -webkit-backdrop-filter:blur(7px); backdrop-filter:blur(7px);
+    border:1px solid rgba(255,62,230,0.38); color:#ff3ee6;
+    transition:transform .2s cubic-bezier(.16,1,.3,1), background .2s ease, box-shadow .2s ease; }
+  #lb-btn:hover{ transform:translateY(-2px); background:rgba(60,12,52,0.6);
+    box-shadow:0 8px 26px rgba(255,62,230,0.25); }
+  #lb-btn svg{ width:24px; height:24px; display:block; }
+
+  /* leaderboard modal */
+  #lb-modal{ position:fixed; inset:0; z-index:20; display:none; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.55); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); cursor:auto; }
+  #lb-modal.open{ display:flex; }
+  #lb-card{ position:relative; width:min(92vw,420px); max-height:86vh; overflow:auto; cursor:auto;
+    background:rgba(20,5,18,0.92); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+    border:1px solid rgba(255,62,230,0.45); border-radius:18px; padding:22px 22px 20px;
+    box-shadow:0 30px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,62,230,0.08) inset;
+    color:#f3e3ef; font:13px/1.5 ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    transform:translateY(14px) scale(.98); opacity:0;
+    transition:transform .4s cubic-bezier(.16,1,.3,1), opacity .3s ease; }
+  #lb-modal.open #lb-card{ transform:none; opacity:1; }
+  #lb-card h2{ margin:0 0 3px; color:#ff3ee6; font-size:15px; letter-spacing:.22em; text-transform:uppercase; }
+  #lb-card .sub{ margin:0 0 16px; color:#b78fae; font-size:10.5px; letter-spacing:.08em; }
+  #lb-close{ position:absolute; top:14px; right:16px; width:30px; height:30px; border-radius:8px;
+    background:transparent; border:1px solid rgba(255,62,230,0.3); color:#ff3ee6; cursor:pointer;
+    font:300 20px/1 ui-monospace,monospace; display:flex; align-items:center; justify-content:center;
+    transition:background .2s ease; }
+  #lb-close:hover{ background:rgba(255,62,230,0.16); }
+  #lb-list{ list-style:none; margin:0 0 14px; padding:0; display:flex; flex-direction:column; gap:3px; }
+  #lb-list li{ display:grid; grid-template-columns:26px 1fr auto; gap:10px; align-items:center;
+    padding:8px 10px; border-radius:9px; background:rgba(255,62,230,0.05); }
+  #lb-list li .rank{ color:#ff3ee6; font-weight:700; }
+  #lb-list li .who{ color:#f3e3ef; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #lb-list li .sc{ color:#ffffff; font-weight:700; }
+  #lb-list li.empty{ display:block; text-align:center; color:#9c7d96; background:transparent; padding:14px 0; }
+  #lb-your{ margin:0 0 14px; padding:11px 13px; border-radius:11px;
+    border:1px dashed rgba(255,62,230,0.4); color:#e7c7e0; font-size:12px; }
+  #lb-your.none{ color:#9c7d96; border-style:solid; border-color:rgba(255,255,255,0.08); }
+  #lb-your .stars{ color:#ffd36b; letter-spacing:.06em; }
+  #lb-your b{ color:#ff3ee6; }
+  #lb-form{ display:flex; flex-direction:column; gap:9px; }
+  #lb-form input{ width:100%; box-sizing:border-box; padding:11px 13px; border-radius:10px;
+    background:rgba(255,255,255,0.04); border:1px solid rgba(255,62,230,0.3); color:#ffffff;
+    font:13px ui-monospace,'SF Mono',Menlo,Consolas,monospace; outline:none;
+    transition:border-color .2s ease, background .2s ease; }
+  #lb-form input:focus{ border-color:#ff3ee6; background:rgba(255,255,255,0.07); }
+  #lb-form input::placeholder{ color:#9c7d96; }
+  #lb-submit{ margin-top:3px; padding:12px; border-radius:10px; cursor:pointer; border:none;
+    background:linear-gradient(135deg,#ff3ee6,#c730b3); color:#fff; font:700 12px/1 ui-monospace,monospace;
+    letter-spacing:.14em; text-transform:uppercase; transition:filter .2s ease, transform .15s ease; }
+  #lb-submit:hover{ filter:brightness(1.1); }
+  #lb-submit:active{ transform:translateY(1px); }
+  #lb-submit:disabled{ opacity:.5; cursor:default; }
+  #lb-msg{ min-height:14px; font-size:11px; letter-spacing:.04em; }
+  #lb-msg.ok{ color:#7cf3a0; }
+  #lb-msg.err{ color:#ff8da8; }
 </style>
 </head>
 <body>
@@ -39,11 +109,42 @@
   <div class="vignette"></div>
   <div id="cur"></div>
 
-  <div id="stats">
-    <div class="title">Pop Stats</div>
-    <div class="srow"><span>Accuracy</span><b id="st-acc">100%</b></div>
-    <div class="srow"><span>Time</span><b id="st-time">0.0s</b></div>
-    <div class="srow"><span>Clicks</span><b id="st-clicks">0</b></div>
+  <div id="hud">
+    <div id="stats" class="ui">
+      <div class="shead">
+        <div class="title">Pop Stats</div>
+        <div class="min" id="st-min" role="button" tabindex="0" title="Minimize">–</div>
+      </div>
+      <div class="sbody">
+        <div class="srow"><span>Accuracy</span><b id="st-acc">100%</b></div>
+        <div class="srow"><span>Time</span><b id="st-time">0.0s</b></div>
+        <div class="srow"><span>Clicks</span><b id="st-clicks">0</b></div>
+        <div class="srow"><span>Score</span><b id="st-score">0</b></div>
+        <div class="srow"><span>Rating</span><b id="st-rate" class="stars">☆☆☆☆☆</b></div>
+      </div>
+    </div>
+    <div id="lb-btn" class="ui" role="button" tabindex="0" aria-label="Leaderboard" title="Leaderboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/>
+        <path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>
+      </svg>
+    </div>
+  </div>
+
+  <div id="lb-modal" class="ui">
+    <div id="lb-card">
+      <button id="lb-close" class="ui" type="button" aria-label="Close">×</button>
+      <h2>Leaderboard</h2>
+      <p class="sub">Top scores this month · monthly winner emailed a prize</p>
+      <ol id="lb-list"><li class="empty">Loading…</li></ol>
+      <div id="lb-your" class="none">Pop all the pink to set a score, then submit it here.</div>
+      <form id="lb-form" autocomplete="on">
+        <input id="lb-user" name="username" placeholder="username" autocomplete="username" maxlength="24" />
+        <input id="lb-email" name="email" type="email" placeholder="email (for the prize)" autocomplete="email" maxlength="120" />
+        <button id="lb-submit" type="submit" disabled>Submit score</button>
+        <div id="lb-msg"></div>
+      </form>
+    </div>
   </div>
 
 <script>
@@ -274,7 +375,7 @@
       b.jiggle += (1 - b.jiggle) * 0.045;  // wobble settles back to base
     }
     for (let i = globs.length - 1; i >= 0; i--) if (globs[i].dead) globs.splice(i, 1);
-    if (stats.active && globs.length === 0) { stats.active = false; stats.endT = now; }   // round over
+    if (stats.active && globs.length === 0) { stats.active = false; stats.endT = now; onRoundEnd(); }   // round over
     for (let i = drops.length - 1; i >= 0; i--) {
       const d = drops[i]; d.x += d.vx; d.y += d.vy; d.vy += 0.06; d.vx *= 0.99;
       d.life -= 0.018; d.r *= 0.99;
@@ -515,7 +616,11 @@
   const stop = () => { if (raf) { cancelAnimationFrame(raf); raf = 0; } };
 
   // ---- input ----
+  // ignore events that originate inside the UI (HUD, leaderboard, modal)
+  const onUI = (e) => !!(e.target && e.target.closest && e.target.closest('.ui'));
+
   addEventListener('wheel', (e) => {
+    if (onUI(e)) return;                 // let the modal scroll natively
     e.preventDefault();
     zoomTarget += -e.deltaY * 0.0016;
     zoomTarget = Math.max(-1.4, Math.min(2.4, zoomTarget));
@@ -529,6 +634,7 @@
   addEventListener('pointerleave', () => { mouse.active = false; cur.style.opacity = '0'; });
 
   addEventListener('pointerdown', (e) => {
+    if (onUI(e)) return;                 // clicks on buttons/modal never reach the field
     activePointers.add(e.pointerId);
     // single primary pointer = a tap/click -> spawn; ignore extra pinch fingers
     if (e.isPrimary && activePointers.size === 1) {
@@ -566,12 +672,174 @@
 
   // hyperspace + black hole controls
   addEventListener('keydown', (e) => {
+    if (/^(input|textarea|select)$/i.test(e.target && e.target.tagName)) return;   // don't hijack typing
     if (e.code === 'Space' || e.code === 'KeyH') { hyper = 1; e.preventDefault(); }
   });
-  addEventListener('dblclick', () => { hyper = 1; });
+  addEventListener('dblclick', (e) => { if (onUI(e)) return; hyper = 1; });
 
   addEventListener('resize', () => { measure(); seed(); });
   document.addEventListener('visibilitychange', () => { document.hidden ? stop() : start(); });
+
+  // ===== minimize the stats board =====
+  const minBtn = document.getElementById('st-min');
+  const toggleMin = () => {
+    statsEl.classList.toggle('min-collapsed');
+    const collapsed = statsEl.classList.contains('min-collapsed');
+    minBtn.textContent = collapsed ? '+' : '–';
+    minBtn.title = collapsed ? 'Expand' : 'Minimize';
+  };
+  if (minBtn) {
+    minBtn.addEventListener('click', toggleMin);
+    minBtn.addEventListener('keydown', (e) => {
+      if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); toggleMin(); }
+    });
+  }
+
+  // ===== rating + leaderboard =====
+  const LB_API = '/api/leaderboard';
+  let lastRound = null;            // best completed round this session (what gets submitted)
+
+  const scoreEl = document.getElementById('st-score');
+  const rateEl  = document.getElementById('st-rate');
+  const starStr = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
+
+  // Balanced rating: precision and speed weigh roughly equally.
+  // Tune these constants to reshape the leaderboard.
+  function computeScore(hits, clicks, timeMs) {
+    const accuracy = clicks ? hits / clicks : 1;
+    const timeSec = Math.max(0.001, timeMs / 1000);
+    const score = Math.max(0, Math.round(hits * 100 * Math.pow(accuracy, 1.5) - timeSec * 4));
+    const speed = hits ? timeSec / hits : 99;          // seconds per pop — lower is better
+    let r = 0;
+    r += accuracy >= .95 ? 2.5 : accuracy >= .8 ? 2 : accuracy >= .6 ? 1.2 : accuracy >= .4 ? .6 : .2;
+    r += speed <= .6 ? 2.5 : speed <= 1 ? 2 : speed <= 1.6 ? 1.3 : speed <= 2.5 ? .7 : .2;
+    const stars = Math.max(1, Math.min(5, Math.round(r)));
+    return { score, stars, accuracy, timeMs, clicks, hits };
+  }
+
+  function onRoundEnd() {
+    const res = computeScore(stats.hits, stats.clicks, stats.endT - stats.startT);
+    if (scoreEl) scoreEl.textContent = res.score;
+    if (rateEl)  rateEl.textContent = starStr(res.stars);
+    if (!lastRound || res.score > lastRound.score) lastRound = res;   // keep the session best
+    renderYour();
+  }
+
+  // ----- leaderboard UI -----
+  const lbBtn    = document.getElementById('lb-btn');
+  const lbModal  = document.getElementById('lb-modal');
+  const lbClose  = document.getElementById('lb-close');
+  const lbList   = document.getElementById('lb-list');
+  const lbYour   = document.getElementById('lb-your');
+  const lbForm   = document.getElementById('lb-form');
+  const lbUser   = document.getElementById('lb-user');
+  const lbEmail  = document.getElementById('lb-email');
+  const lbSubmit = document.getElementById('lb-submit');
+  const lbMsg    = document.getElementById('lb-msg');
+
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const validEmail = (s) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+  const setMsg = (t, cls) => { if (lbMsg) { lbMsg.textContent = t; lbMsg.className = cls || ''; } };
+
+  function renderYour() {
+    if (!lbYour) return;
+    if (!lastRound) {
+      lbYour.className = 'none';
+      lbYour.textContent = 'Pop all the pink to set a score, then submit it here.';
+      if (lbSubmit) lbSubmit.disabled = true;
+      return;
+    }
+    lbYour.className = '';
+    lbYour.innerHTML = 'Your best · <b>' + lastRound.score + '</b> pts · ' +
+      '<span class="stars">' + starStr(lastRound.stars) + '</span> · ' +
+      Math.round(lastRound.accuracy * 100) + '% · ' + (lastRound.timeMs / 1000).toFixed(1) + 's';
+    if (lbSubmit) lbSubmit.disabled = false;
+  }
+
+  function renderList(rows) {
+    if (!lbList) return;
+    if (!rows || !rows.length) { lbList.innerHTML = '<li class="empty">No scores yet — be the first.</li>'; return; }
+    lbList.innerHTML = rows.slice(0, 10).map((r, i) =>
+      '<li><span class="rank">' + (i + 1) + '</span>' +
+      '<span class="who">' + esc(r.username || 'anon') + '</span>' +
+      '<span class="sc">' + (r.score | 0) + '</span></li>').join('');
+  }
+
+  async function loadBoard() {
+    if (lbList) lbList.innerHTML = '<li class="empty">Loading…</li>';
+    let rows = [];
+    try {
+      const r = await fetch(LB_API, { cache: 'no-store' });
+      if (!r.ok) throw new Error('api');
+      rows = await r.json();
+    } catch (e) {
+      rows = JSON.parse(localStorage.getItem('lb_local') || '[]');   // pre-DB fallback
+    }
+    rows.sort((a, b) => (b.score | 0) - (a.score | 0));
+    renderList(rows);
+  }
+
+  function openBoard() {
+    lbModal.classList.add('open');
+    try {
+      const id = JSON.parse(localStorage.getItem('lb_id') || '{}');
+      if (id.username && lbUser) lbUser.value = id.username;
+      if (id.email && lbEmail) lbEmail.value = id.email;
+    } catch (e) {}
+    setMsg('', '');
+    renderYour();
+    loadBoard();
+  }
+  const closeBoard = () => lbModal.classList.remove('open');
+
+  if (lbBtn) {
+    lbBtn.addEventListener('click', openBoard);
+    lbBtn.addEventListener('keydown', (e) => {
+      if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); openBoard(); }
+    });
+  }
+  if (lbClose) lbClose.addEventListener('click', closeBoard);
+  if (lbModal) lbModal.addEventListener('click', (e) => { if (e.target === lbModal) closeBoard(); });
+  addEventListener('keydown', (e) => { if (e.code === 'Escape') closeBoard(); });
+
+  if (lbForm) lbForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!lastRound) { setMsg('Play a round first.', 'err'); return; }
+    const username = (lbUser.value || '').trim();
+    const email = (lbEmail.value || '').trim();
+    if (username.length < 2) { setMsg('Enter a username (2+ characters).', 'err'); return; }
+    if (!validEmail(email)) { setMsg('Enter a valid email for the prize.', 'err'); return; }
+
+    const entry = {
+      username, email,
+      score: lastRound.score, stars: lastRound.stars,
+      accuracy: +lastRound.accuracy.toFixed(4),
+      timeMs: Math.round(lastRound.timeMs),
+      clicks: lastRound.clicks, hits: lastRound.hits,
+    };
+    localStorage.setItem('lb_id', JSON.stringify({ username, email }));
+
+    lbSubmit.disabled = true;
+    setMsg('Submitting…', '');
+    let viaApi = false;
+    try {
+      const r = await fetch(LB_API, {
+        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(entry),
+      });
+      if (r.ok) viaApi = true;
+    } catch (e) {}
+    if (!viaApi) {                                   // local fallback so it works before the DB is wired
+      const list = JSON.parse(localStorage.getItem('lb_local') || '[]');
+      list.push({ ...entry, ts: Date.now() });
+      list.sort((a, b) => b.score - a.score);
+      localStorage.setItem('lb_local', JSON.stringify(list.slice(0, 50)));
+    }
+    lbSubmit.disabled = false;
+    setMsg(viaApi ? "Submitted! Good luck in this month's draw."
+                  : 'Saved locally — leaderboard DB not connected yet.', 'ok');
+    loadBoard();
+  });
 
   measure(); seed(); start();
 })();
