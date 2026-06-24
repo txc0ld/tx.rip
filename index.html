@@ -19,43 +19,38 @@
     transition:opacity .4s ease; opacity:0; }
   @media (hover:none){ body{ cursor:auto } #cur{ display:none } }
 
-  /* bottom-left HUD: stats panel stacked above the leaderboard button */
-  #hud{ position:fixed; left:clamp(14px,2.5vw,28px); bottom:clamp(14px,2.5vh,28px); z-index:5;
-    display:flex; flex-direction:column; gap:12px; align-items:flex-start; pointer-events:none; }
+  /* bottom-center HUD: icon dock with the stats popover floating above it */
+  #hud{ position:fixed; left:50%; bottom:clamp(14px,2.5vh,28px); transform:translateX(-50%); z-index:5;
+    display:flex; flex-direction:column; align-items:center; pointer-events:none; }
+  #dock{ display:flex; gap:12px; pointer-events:none; }
 
-  /* pop stats panel */
-  #stats{ font:11px/1.55 ui-monospace,'SF Mono',Menlo,Consolas,monospace;
-    letter-spacing:.12em; text-transform:uppercase; color:#ffffff;
-    background:rgba(255,255,255,0.10); -webkit-backdrop-filter:blur(14px) saturate(120%); backdrop-filter:blur(14px) saturate(120%);
-    border:1px solid rgba(255,255,255,0.22); border-radius:13px; padding:12px 15px; min-width:172px;
-    box-shadow:0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.30);
-    opacity:0; transform:translateY(10px); transition:opacity .45s ease, transform .45s cubic-bezier(.16,1,.3,1);
-    pointer-events:none; }
-  #stats.show{ opacity:1; transform:none; pointer-events:auto; }
-  #stats .shead{ display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:9px; }
-  #stats .title{ color:#ffffff; letter-spacing:.26em; font-size:10px; opacity:.95; }
-  #stats .min{ cursor:pointer; color:#ffffff; background:rgba(255,255,255,0.06);
-    border:1px solid rgba(255,255,255,0.28); border-radius:6px; width:20px; height:18px;
-    font:700 13px/1 ui-monospace,monospace; display:flex; align-items:center; justify-content:center;
-    transition:background .2s ease; }
-  #stats .min:hover{ background:rgba(255,255,255,0.22); }
-  #stats .sbody{ overflow:hidden; transition:max-height .35s ease, opacity .3s ease; max-height:160px; opacity:1; }
-  #stats.min-collapsed .sbody{ max-height:0; opacity:0; }
-  #stats .srow{ display:flex; justify-content:space-between; gap:22px; }
-  #stats .srow span{ color:rgba(255,255,255,0.72); }
-  #stats b{ color:#ffffff; font-weight:700; }
-  #stats b.stars{ color:#ffd36b; letter-spacing:.06em; }
-
-  /* leaderboard button */
-  #lb-btn{ pointer-events:auto; cursor:pointer; width:48px; height:48px; border-radius:14px;
+  /* dock icon buttons (stats + leaderboard) */
+  .dock-btn{ pointer-events:auto; cursor:pointer; width:48px; height:48px; border-radius:14px;
     display:flex; align-items:center; justify-content:center;
     background:rgba(255,255,255,0.10); -webkit-backdrop-filter:blur(14px) saturate(120%); backdrop-filter:blur(14px) saturate(120%);
     border:1px solid rgba(255,255,255,0.22); color:#ffffff;
     box-shadow:0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.30);
     transition:transform .2s cubic-bezier(.16,1,.3,1), background .2s ease, box-shadow .2s ease; }
-  #lb-btn:hover{ transform:translateY(-2px); background:rgba(255,255,255,0.20);
+  .dock-btn:hover{ transform:translateY(-2px); background:rgba(255,255,255,0.20);
     box-shadow:0 12px 30px rgba(255,255,255,0.18), inset 0 1px 0 rgba(255,255,255,0.35); }
-  #lb-btn svg{ width:24px; height:24px; display:block; }
+  .dock-btn.active{ background:rgba(255,255,255,0.22); border-color:rgba(255,255,255,0.40); }
+  .dock-btn svg{ width:24px; height:24px; display:block; }
+
+  /* pop stats popover (toggled by the stats icon) */
+  #stats{ position:absolute; bottom:calc(100% + 12px); left:50%;
+    font:11px/1.55 ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    letter-spacing:.12em; text-transform:uppercase; color:#ffffff;
+    background:rgba(255,255,255,0.10); -webkit-backdrop-filter:blur(14px) saturate(120%); backdrop-filter:blur(14px) saturate(120%);
+    border:1px solid rgba(255,255,255,0.22); border-radius:13px; padding:12px 15px; min-width:178px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.30);
+    opacity:0; transform:translateX(-50%) translateY(10px); transform-origin:bottom center;
+    transition:opacity .35s ease, transform .35s cubic-bezier(.16,1,.3,1); pointer-events:none; }
+  #stats.show{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
+  #stats .title{ color:#ffffff; letter-spacing:.26em; font-size:10px; opacity:.95; margin:0 0 9px; }
+  #stats .srow{ display:flex; justify-content:space-between; gap:22px; }
+  #stats .srow span{ color:rgba(255,255,255,0.72); }
+  #stats b{ color:#ffffff; font-weight:700; }
+  #stats b.stars{ color:#ffd36b; letter-spacing:.06em; }
 
   /* leaderboard modal */
   #lb-modal{ position:fixed; inset:0; z-index:20; display:none; align-items:center; justify-content:center;
@@ -114,23 +109,25 @@
 
   <div id="hud">
     <div id="stats" class="ui">
-      <div class="shead">
-        <div class="title">Pop Stats</div>
-        <div class="min" id="st-min" role="button" tabindex="0" title="Minimize">–</div>
-      </div>
-      <div class="sbody">
-        <div class="srow"><span>Accuracy</span><b id="st-acc">100%</b></div>
-        <div class="srow"><span>Time</span><b id="st-time">0.0s</b></div>
-        <div class="srow"><span>Clicks</span><b id="st-clicks">0</b></div>
-        <div class="srow"><span>Score</span><b id="st-score">0</b></div>
-        <div class="srow"><span>Rating</span><b id="st-rate" class="stars">☆☆☆☆☆</b></div>
-      </div>
+      <div class="title">Pop Stats</div>
+      <div class="srow"><span>Accuracy</span><b id="st-acc">100%</b></div>
+      <div class="srow"><span>Time</span><b id="st-time">0.0s</b></div>
+      <div class="srow"><span>Clicks</span><b id="st-clicks">0</b></div>
+      <div class="srow"><span>Score</span><b id="st-score">0</b></div>
+      <div class="srow"><span>Rating</span><b id="st-rate" class="stars">☆☆☆☆☆</b></div>
     </div>
-    <div id="lb-btn" class="ui" role="button" tabindex="0" aria-label="Leaderboard" title="Leaderboard">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/>
-        <path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>
-      </svg>
+    <div id="dock">
+      <div id="stats-btn" class="dock-btn ui" role="button" tabindex="0" aria-label="Stats" title="Stats">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="6" y1="20" x2="6" y2="13"/><line x1="12" y1="20" x2="12" y2="7"/><line x1="18" y1="20" x2="18" y2="11"/>
+        </svg>
+      </div>
+      <div id="lb-btn" class="dock-btn ui" role="button" tabindex="0" aria-label="Leaderboard" title="Leaderboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/>
+          <path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>
+        </svg>
+      </div>
     </div>
   </div>
 
@@ -604,8 +601,7 @@
     stats.clicks = 0; stats.hits = 0; stats.startT = performance.now(); stats.endT = 0;
   };
   const renderStats = () => {
-    if (!stats.visible) return;
-    if (statsEl && !statsEl.classList.contains('show')) statsEl.classList.add('show');
+    if (!stats.visible) return;                  // numbers are live; the panel itself is toggled by the stats icon
     const t = (stats.active ? performance.now() : stats.endT) - stats.startT;
     const acc = stats.clicks ? Math.round(stats.hits / stats.clicks * 100) : 100;
     if (accEl) accEl.textContent = acc + '%';
@@ -683,18 +679,16 @@
   addEventListener('resize', () => { measure(); seed(); });
   document.addEventListener('visibilitychange', () => { document.hidden ? stop() : start(); });
 
-  // ===== minimize the stats board =====
-  const minBtn = document.getElementById('st-min');
-  const toggleMin = () => {
-    statsEl.classList.toggle('min-collapsed');
-    const collapsed = statsEl.classList.contains('min-collapsed');
-    minBtn.textContent = collapsed ? '+' : '–';
-    minBtn.title = collapsed ? 'Expand' : 'Minimize';
+  // ===== stats icon toggles the stats popover =====
+  const statsBtn = document.getElementById('stats-btn');
+  const toggleStats = () => {
+    const open = statsEl.classList.toggle('show');
+    if (statsBtn) statsBtn.classList.toggle('active', open);
   };
-  if (minBtn) {
-    minBtn.addEventListener('click', toggleMin);
-    minBtn.addEventListener('keydown', (e) => {
-      if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); toggleMin(); }
+  if (statsBtn) {
+    statsBtn.addEventListener('click', toggleStats);
+    statsBtn.addEventListener('keydown', (e) => {
+      if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); toggleStats(); }
     });
   }
 
