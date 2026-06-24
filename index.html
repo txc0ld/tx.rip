@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#000000" />
+<title>starfield</title>
+<style>
+  html,body{ height:100%; margin:0; background:#000; overflow:hidden; overscroll-behavior:none; }
+  body{ cursor:none; touch-action:none; }
+  #sky{ position:fixed; inset:0; display:block; }
+  /* edge falloff for depth */
+  .vignette{ position:fixed; inset:0; pointer-events:none;
+    background:radial-gradient(130% 120% at 50% 50%, transparent 52%, rgba(0,0,0,.85) 100%); }
+  /* soft cursor ring so the interaction point is felt, not labelled */
+  #cur{ position:fixed; top:0; left:0; width:46px; height:46px; margin:-23px 0 0 -23px;
+    border-radius:50%; pointer-events:none; mix-blend-mode:screen;
+    background:radial-gradient(circle, rgba(255,255,255,.10) 0%, rgba(255,255,255,.04) 40%, transparent 70%);
+    transition:opacity .4s ease; opacity:0; }
+  @media (hover:none){ body{ cursor:auto } #cur{ display:none } }
+
+  /* pop stats panel */
+  #stats{ position:fixed; left:clamp(14px,2.5vw,28px); bottom:clamp(14px,2.5vh,28px); z-index:5;
+    font:11px/1.55 ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    letter-spacing:.12em; text-transform:uppercase; color:#e7c7e0;
+    background:rgba(22,6,20,0.55); -webkit-backdrop-filter:blur(7px); backdrop-filter:blur(7px);
+    border:1px solid rgba(255,62,230,0.38); border-radius:11px; padding:12px 15px; min-width:158px;
+    opacity:0; transform:translateY(10px); transition:opacity .45s ease, transform .45s cubic-bezier(.16,1,.3,1);
+    pointer-events:none; }
+  #stats.show{ opacity:1; transform:none; }
+  #stats .title{ color:#ff3ee6; letter-spacing:.26em; font-size:10px; opacity:.9; margin-bottom:9px; }
+  #stats .srow{ display:flex; justify-content:space-between; gap:22px; }
+  #stats .srow span{ color:#8a6f86; }
+  #stats b{ color:#ff3ee6; font-weight:700; }
+</style>
+</head>
+<body>
+  <canvas id="sky"></canvas>
+  <div class="vignette"></div>
+  <div id="cur"></div>
+
+  <div id="stats">
+    <div class="title">Pop Stats</div>
+    <div class="srow"><span>Accuracy</span><b id="st-acc">100%</b></div>
+    <div class="srow"><span>Time</span><b id="st-time">0.0s</b></div>
+    <div class="srow"><span>Clicks</span><b id="st-clicks">0</b></div>
+  </div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('sky');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const cur = document.getElementById('cur');
+  const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const STAR = 'rgba(255,255,255,0.9)';
+  const BG = '#000000';
+
+  // ---- tunables ----
+  const RATIO0 = 200;            // projection spread
+  const IDLE = REDUCED ? 0.25 : 0.6;   // gentle forward drift at rest
+  const WARP_GAIN = 3.4;         // how hard zoom drives warp velocity
+  const SPIN = REDUCED ? 0 : 0.00045;  // slow field rotation -> "fluid"
+  const LENS_R = 60;            // pull reach (px) — tight focus point (75% smaller)
+  const LENS_PULL = 0.24;       // inward strength (<=0.25 so stars never overshoot the centre)
+
+  const dims = { w: 0, h: 0, cx: 0, cy: 0, z: 1, colorRatio: 0 };
+  let stars = [];
+  let count = 1200;
+  let ratio = RATIO0;
+
+  // zoom state: target is nudged by wheel/pinch, eases back to centre gracefully
+  let zoom = 0, zoomTarget = 0;
+  // cursor in screen space (offscreen until first move)
+  const mouse = { x: -9999, y: -9999, active: false };
+  let ripples = [];                       // brief click rings
+  const activePointers = new Set();       // to tell taps from pinches
+
+  // ---- cosmic extras ----
+  let T = 0;                                   // frame clock (twinkle)
+  let parX = 0, parY = 0;                      // gentle parallax tilt of the field
+  let hyper = 0;                               // hyperspace surge (decays)
+  let meteors = []; let meteorTimer = 120;     // shooting stars
+
+  const spawnMeteor = () => {
+    const fromLeft = Math.random() < 0.5;
+    const x = fromLeft ? -60 : Math.random() * dims.w;
+    const y = fromLeft ? Math.random() * dims.h * 0.55 : -60;
+    const ang = Math.PI * (0.12 + Math.random() * 0.22);       // down-right
+    const spd = 9 + Math.random() * 8;
+    meteors.push({ x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
+                   len: 90 + Math.random() * 150, life: 1 });
+  };
+
+  const updateExtras = () => {
+    const tx = mouse.active ? (mouse.x - dims.cx) * -0.012 : 0;
+    const ty = mouse.active ? (mouse.y - dims.cy) * -0.012 : 0;
+    parX += (tx - parX) * 0.05; parY += (ty - parY) * 0.05;
+
+    if (--meteorTimer <= 0) { spawnMeteor(); meteorTimer = 150 + Math.random() * 320; }
+    for (let i = meteors.length - 1; i >= 0; i--) {
+      const m = meteors[i]; m.x += m.vx; m.y += m.vy; m.life -= 0.005;
+      if (m.life <= 0 || m.x > dims.w + 90 || m.y > dims.h + 90) meteors.splice(i, 1);
+    }
+  };
+
+  const project = (s) => {
+    s.sx = dims.cx + (s.x / s.z) * ratio;
+    s.sy = dims.cy + (s.y / s.z) * ratio;
+  };
+
+  const measure = () => {
+    dims.w = innerWidth; dims.h = innerHeight;
+    dims.cx = (dims.w / 2) | 0; dims.cy = (dims.h / 2) | 0;
+    dims.z = (dims.w + dims.h) / 2;
+    dims.colorRatio = 1 / dims.z;
+    count = dims.w < 768 ? 1000 : 1750;
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(dims.w * dpr);
+    canvas.height = Math.floor(dims.h * dpr);
+    canvas.style.width = dims.w + 'px';
+    canvas.style.height = dims.h + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+
+  const seed = () => {
+    stars = Array.from({ length: count }, () => {
+      const s = {
+        x: Math.random() * dims.w * 2 - dims.cx * 2,
+        y: Math.random() * dims.h * 2 - dims.cy * 2,
+        z: Math.round(Math.random() * dims.z),
+        sx: 0, sy: 0, px: 0, py: 0,
+        ox: 0, oy: 0, ovx: 0, ovy: 0,  // fluid displacement + its velocity
+        tint: 0,                       // 0 = white; sprayed stars start at 1 (lime)
+        tw: Math.random() * Math.PI * 2,  // twinkle phase
+        visible: true,
+      };
+      project(s);
+      s.px = s.sx + s.ox; s.py = s.sy + s.oy;
+      return s;
+    });
+  };
+
+  const step = () => {
+    // ease zoom toward target; target self-centres for a graceful settle
+    zoom += (zoomTarget - zoom) * 0.12;
+    zoomTarget *= 0.985;
+    ratio = RATIO0 * (1 + Math.max(-0.55, Math.min(1.4, zoom * 0.5)));
+
+    T++;
+    // warp velocity: idle drift + zoom throttle + hyperspace surge
+    const vel = IDLE + zoom * WARP_GAIN + hyper * 16;
+    hyper *= 0.94;
+
+    // field spin
+    const ca = Math.cos(SPIN), sa = Math.sin(SPIN);
+
+    for (const s of stars) {
+      s.visible = true;
+      s.px = s.sx + s.ox;
+      s.py = s.sy + s.oy;
+
+      if (SPIN) { const nx = s.x * ca - s.y * sa, ny = s.x * sa + s.y * ca; s.x = nx; s.y = ny; }
+
+      s.z -= vel;
+      if (s.z > dims.z) { s.z -= dims.z; s.visible = false; }
+      if (s.z < 1)      { s.z += dims.z; s.visible = false; }
+
+      project(s);
+
+      // ---- displacement dynamics ----
+      if (s.spark) {
+        // firework: cursor-immune. Keeps sailing outward — never returns to centre.
+        s.ox += s.ovx; s.oy += s.ovy;
+        s.ovx *= 0.99; s.ovy *= 0.99;            // light air-drag only
+      }
+      // field stars carry no offset; the cursor interaction is the gravitational lens at draw time
+      if (s.tint) s.tint *= 0.985;   // #ff3ee6 -> white as it streaks out
+
+      // on recycle, a still-flying spark resets cleanly and rejoins the field
+      if (!s.visible) {
+        if (s.spark) { s.spark = false; s.ox = s.oy = s.ovx = s.ovy = 0; s.tint = 0; }
+        s.px = s.sx + s.ox; s.py = s.sy + s.oy;   // avoid streak jump on wrap
+      }
+    }
+
+    updateExtras();
+    updateGlobs();
+  };
+
+  // ===== glossy pink paint =====
+  const TAU = Math.PI * 2;
+  const globs = [];
+  const drops = [];
+  let nextSpawnAt = null, firstSpawn = true;   // spawn only when all pink is gone; 1–5 min apart
+  const MAX_GEN = 4;                      // 4 split sets; the gen-3 split makes the final 2 balls
+
+  const spawnGlob = (x, y, r, gen, vx, vy) => {
+    globs.push({
+      x, y, vx: vx || 0, vy: vy || 0, r, gen: gen || 0,
+      N: 16, seed: Math.random() * TAU,
+      morph: Math.random() * TAU,                       // slow shape clock
+      mw1: 2 + (Math.random() * 2 | 0), mw2: 4 + (Math.random() * 3 | 0), mw3: 3 + (Math.random() * 2 | 0),
+      ms1: 0.8 + Math.random() * 0.7, ms2: -(0.6 + Math.random() * 0.6), ms3: 0.5 + Math.random() * 0.6,
+      wander: Math.random() * TAU,                      // heading for roaming the screen
+      grow: 0, jiggle: 1.7, dead: false,
+    });
+  };
+  const spawnRandomGlob = () => {
+    const r = 63 + Math.random() * 23, m = r + 30;
+    spawnGlob(m + Math.random() * (dims.w - 2 * m), m + Math.random() * (dims.h - 2 * m),
+              r, 0, (Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 1.2);
+  };
+
+  const splat = (x, y, n, baseR, speed) => {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * TAU, s = speed * (0.4 + Math.random());
+      drops.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+                   r: 2 + Math.random() * baseR * 0.14, life: 1 });
+    }
+  };
+
+  const popOrSplit = (b) => {
+    if (b.dead) return;
+    b.dead = true;
+    if (b.gen >= MAX_GEN) { splat(b.x, b.y, 10, b.r, 3.4); return; }   // smallest -> burst and vanish
+    const last = b.gen === MAX_GEN - 1;     // the extra end stage -> exactly 2 balls before it's over
+    const k = last ? 2 : 2 + (Math.random() < 0.55 ? 1 : 0);
+    const cr = b.r * 0.68;
+    for (let j = 0; j < k; j++) {
+      const a = b.seed + j / k * TAU + (Math.random() - 0.5);
+      const sp = 2.4 + Math.random() * 2.8;
+      spawnGlob(b.x, b.y, cr, b.gen + 1, Math.cos(a) * sp + b.vx * 0.3, Math.sin(a) * sp + b.vy * 0.3);
+    }
+    splat(b.x, b.y, 12, b.r, 4.5);
+  };
+
+  const hitGlob = (px, py) => {           // topmost glob under the point
+    for (let i = globs.length - 1; i >= 0; i--) {
+      const b = globs[i]; if (b.dead) continue;
+      const R = b.r * b.grow, dx = px - b.x, dy = py - b.y;
+      if (dx * dx + dy * dy < R * R) { popOrSplit(b); return true; }
+    }
+    return false;
+  };
+
+  const updateGlobs = () => {
+    // spawn only when every blob has been cleared; 1–5 minutes apart (first one sooner)
+    const now = performance.now();
+    if (globs.length === 0) {
+      if (nextSpawnAt === null)
+        nextSpawnAt = now + (firstSpawn ? 4000 + Math.random() * 4000 : 60000 + Math.random() * 240000);
+      if (now >= nextSpawnAt) { spawnRandomGlob(); firstSpawn = false; nextSpawnAt = null; }
+    } else {
+      nextSpawnAt = null;
+    }
+
+    for (const b of globs) {
+      if (b.dead) continue;
+      b.grow += (1 - b.grow) * 0.12;       // ease in
+      b.morph += 0.012;                    // slow shape warp
+      b.wander += (Math.random() - 0.5) * 0.05;          // gentle random steering
+      b.vx += Math.cos(b.wander) * 0.03;   // thrust along heading -> roams the screen
+      b.vy += Math.sin(b.wander) * 0.03;
+      b.vx *= 0.985; b.vy *= 0.985;
+      const sp = Math.hypot(b.vx, b.vy);
+      if (sp > 2.4) { b.vx *= 2.4 / sp; b.vy *= 2.4 / sp; }   // cap roam speed
+      b.x += b.vx; b.y += b.vy;
+      const R = b.r * b.grow;
+      if (b.x < R) { b.x = R; b.vx = Math.abs(b.vx); b.wander = Math.atan2(b.vy, b.vx); b.jiggle += 0.6; }
+      else if (b.x > dims.w - R) { b.x = dims.w - R; b.vx = -Math.abs(b.vx); b.wander = Math.atan2(b.vy, b.vx); b.jiggle += 0.6; }
+      if (b.y < R) { b.y = R; b.vy = Math.abs(b.vy); b.wander = Math.atan2(b.vy, b.vx); b.jiggle += 0.6; }
+      else if (b.y > dims.h - R) { b.y = dims.h - R; b.vy = -Math.abs(b.vy); b.wander = Math.atan2(b.vy, b.vx); b.jiggle += 0.6; }
+      b.jiggle += (1 - b.jiggle) * 0.045;  // wobble settles back to base
+    }
+    for (let i = globs.length - 1; i >= 0; i--) if (globs[i].dead) globs.splice(i, 1);
+    if (stats.active && globs.length === 0) { stats.active = false; stats.endT = now; }   // round over
+    for (let i = drops.length - 1; i >= 0; i--) {
+      const d = drops[i]; d.x += d.vx; d.y += d.vy; d.vy += 0.06; d.vx *= 0.99;
+      d.life -= 0.018; d.r *= 0.99;
+      if (d.life <= 0 || d.r < 0.4) drops.splice(i, 1);
+    }
+  };
+
+  const drawGlob = (b) => {
+    const R = b.r * b.grow; if (R < 0.6) return;
+    const sp = Math.hypot(b.vx, b.vy);
+    const ux = sp > 0.001 ? b.vx / sp : 1, uy = sp > 0.001 ? b.vy / sp : 0;
+    const sxr = 1 + Math.min(sp * 0.05, 0.45), syr = 1 / sxr;   // teardrop along motion
+    const w = b.jiggle;
+    const m = b.morph;
+
+    const pts = [];
+    for (let i = 0; i < b.N; i++) {
+      const a = i / b.N * TAU;
+      const rr = R * (1
+        + 0.10 * w * Math.sin(a * b.mw1 + m * b.ms1 + b.seed)
+        + 0.06 * w * Math.sin(a * b.mw2 + m * b.ms2 + b.seed * 2)
+        + 0.045 * w * Math.sin(a * b.mw3 + m * b.ms3));
+      const lx = Math.cos(a) * rr, ly = Math.sin(a) * rr;
+      const al = (lx * ux + ly * uy) * sxr, pe = (-lx * uy + ly * ux) * syr;
+      pts.push({ x: b.x + al * ux - pe * uy, y: b.y + al * uy + pe * ux });
+    }
+    const path = new Path2D();
+    path.moveTo((pts[0].x + pts[b.N - 1].x) / 2, (pts[0].y + pts[b.N - 1].y) / 2);
+    for (let i = 0; i < b.N; i++) {
+      const c = pts[i], nx = pts[(i + 1) % b.N];
+      path.quadraticCurveTo(c.x, c.y, (c.x + nx.x) / 2, (c.y + nx.y) / 2);
+    }
+    path.closePath();
+
+    const lxh = b.x - R * 0.32, lyh = b.y - R * 0.4;   // light from upper-left
+
+    // soft pink bloom
+    ctx.globalCompositeOperation = 'lighter';
+    const halo = ctx.createRadialGradient(b.x, b.y, R * 0.5, b.x, b.y, R * 1.7);
+    halo.addColorStop(0, 'rgba(255,62,230,0.28)');
+    halo.addColorStop(1, 'rgba(255,62,230,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(b.x, b.y, R * 1.7, 0, TAU); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+
+    // glossy body
+    const g = ctx.createRadialGradient(lxh, lyh, R * 0.04, b.x, b.y, R * 1.18);
+    g.addColorStop(0, '#ffe2fb');
+    g.addColorStop(0.16, '#ff95f1');
+    g.addColorStop(0.5, '#ff3ee6');
+    g.addColorStop(0.82, '#c730b3');
+    g.addColorStop(1, '#8c227e');
+    ctx.fillStyle = g; ctx.fill(path);
+
+    // wet highlights, clipped to the body
+    ctx.save(); ctx.clip(path);
+    ctx.globalCompositeOperation = 'lighter';
+    const hl = ctx.createRadialGradient(lxh, lyh, 0, lxh, lyh, R * 0.62);
+    hl.addColorStop(0, 'rgba(255,255,255,0.85)');
+    hl.addColorStop(0.45, 'rgba(255,240,250,0.22)');
+    hl.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = hl;
+    ctx.save(); ctx.translate(lxh, lyh); ctx.rotate(-0.5); ctx.scale(1, 0.7);
+    ctx.beginPath(); ctx.arc(0, 0, R * 0.55, 0, TAU); ctx.fill(); ctx.restore();
+    const gx = lxh - R * 0.06, gy = lyh - R * 0.06;
+    const gl = ctx.createRadialGradient(gx, gy, 0, gx, gy, R * 0.18);
+    gl.addColorStop(0, 'rgba(255,255,255,1)');
+    gl.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gl;
+    ctx.beginPath(); ctx.arc(gx, gy, R * 0.18, 0, TAU); ctx.fill();
+    const rlx = b.x + R * 0.42, rly = b.y + R * 0.5;
+    const rl = ctx.createRadialGradient(rlx, rly, 0, rlx, rly, R * 0.7);
+    rl.addColorStop(0, 'rgba(255,150,238,0.5)');
+    rl.addColorStop(1, 'rgba(255,150,238,0)');
+    ctx.fillStyle = rl;
+    ctx.beginPath(); ctx.arc(rlx, rly, R * 0.7, 0, TAU); ctx.fill();
+    ctx.restore();
+    ctx.globalCompositeOperation = 'source-over';
+  };
+
+  const drawGlobs = () => {
+    for (const d of drops) {
+      ctx.globalAlpha = Math.max(0, d.life);
+      const g = ctx.createRadialGradient(d.x - d.r * 0.3, d.y - d.r * 0.3, 0, d.x, d.y, d.r);
+      g.addColorStop(0, '#ffd6f9'); g.addColorStop(0.5, '#ff3ee6'); g.addColorStop(1, '#a81f97');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, TAU); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    for (const b of globs) if (!b.dead) drawGlob(b);
+  };
+
+  // cursor as a focus: pulls a screen point toward the cursor, but the pull is
+  // zero at the exact centre and zero at the edge, so a star passing through is
+  // released on its true trajectory and never captured. Writes LX/LY.
+  let LX = 0, LY = 0;
+  const lens = (x, y) => {
+    const dx = x - mouse.x, dy = y - mouse.y;
+    const d = Math.hypot(dx, dy);
+    if (d > LENS_R || d < 0.001) { LX = x; LY = y; return; }
+    const u = d / LENS_R;
+    const disp = LENS_PULL * LENS_R * u * (1 - u) * 4;   // 0 at centre & edge, peak between
+    LX = x - (dx / d) * disp;   // pull toward the cursor
+    LY = y - (dy / d) * disp;
+  };
+
+  const draw = () => {
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, dims.w, dims.h);
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = STAR;
+    let white = true;
+
+    const lensOn = mouse.active;
+    for (const s of stars) {
+      const rx = s.sx + s.ox, ry = s.sy + s.oy;
+      if (!s.visible || rx < 0 || rx > dims.w || ry < 0 || ry > dims.h) continue;
+      const depth = 1 - dims.colorRatio * s.z;          // 0 far .. 1 near
+      const pf = 0.25 + depth * 1.4;                    // near stars parallax more -> real depth
+      const dxp = parX * pf, dyp = parY * pf;
+
+      let ax = rx + dxp, ay = ry + dyp;                 // current point (parallaxed)
+      let bx = s.px + dxp, by = s.py + dyp;             // previous point (for the streak)
+      let glow = 1;
+      if (lensOn && !s.spark) {                         // pull light toward the cursor focus
+        const ex = ax - mouse.x, ey = ay - mouse.y;
+        const ed = Math.hypot(ex, ey);
+        if (ed < LENS_R) { const w = 1 - ed / LENS_R; glow = 1 + w * w * 1.3; }
+        lens(ax, ay); ax = LX; ay = LY;
+        lens(bx, by); bx = LX; by = LY;
+      }
+
+      ctx.globalAlpha = Math.max(0.35, depth) * (0.78 + 0.22 * Math.sin(T * 0.06 + s.tw)) * glow;
+      ctx.lineWidth = Math.max(0.8, depth * 2.6) * (glow > 1 ? 0.7 + 0.3 * glow : 1);
+      if (s.tint > 0.02) {                              // #ff3ee6 -> white as tint -> 0
+        const t = s.tint;
+        ctx.strokeStyle = `rgb(255,${(255 - 193 * t) | 0},${(255 - 25 * t) | 0})`;
+        white = false;
+      } else if (!white) {
+        ctx.strokeStyle = STAR;
+        white = true;
+      }
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(ax, ay);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // faint expanding ring at each spawn point
+    if (ripples.length) {
+      const now = performance.now();
+      const maxR = dims.w < 768 ? 80 : 130;
+      ctx.lineWidth = 1;
+      for (let i = ripples.length - 1; i >= 0; i--) {
+        const age = (now - ripples[i].t) / 700;
+        if (age >= 1) { ripples.splice(i, 1); continue; }
+        ctx.globalAlpha = (1 - age) * 0.22;
+        ctx.beginPath();
+        ctx.arc(ripples[i].x, ripples[i].y, age * maxR, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    drawExtras();
+    drawGlobs();
+  };
+
+  // ---- click: spawn a burst of stars that fly out, then settle into orbit ----
+  const spawn = (px, py) => {
+    const n = dims.w < 768 ? 18 : 30;
+    for (let i = 0; i < n; i++) {
+      const z = (0.12 + Math.random() * 0.4) * dims.z;   // born near -> bright + streaky
+      const ang = Math.random() * Math.PI * 2;
+      const spd = 5.5 + Math.random() * 7.5;             // spray outward (50% slower)
+      const s = {
+        x: (px - dims.cx) * z / ratio,                   // back-project so it lands on the click
+        y: (py - dims.cy) * z / ratio,
+        z, sx: 0, sy: 0, px: 0, py: 0,
+        ox: 0, oy: 0, ovx: Math.cos(ang) * spd, ovy: Math.sin(ang) * spd,
+        tint: 1,                                          // #ff3ee6 at birth, fades to white as it settles
+        tw: Math.random() * Math.PI * 2,
+        spark: true,                                      // firework: ignores the cursor until it lands
+        visible: true,
+      };
+      project(s); s.px = s.sx; s.py = s.sy;
+      stars.push(s);
+    }
+    // cap total so rapid clicking can't grow unbounded (drop oldest spawned)
+    const MAX = dims.w < 768 ? 2000 : 3100;
+    if (stars.length > MAX) stars.splice(count, stars.length - MAX);
+    ripples.push({ x: px, y: py, t: performance.now() });
+  };
+
+  const drawMeteor = (m) => {
+    const inv = 1 / (Math.hypot(m.vx, m.vy) || 1);
+    const tx = m.x - m.vx * inv * m.len, ty = m.y - m.vy * inv * m.len;
+    const g = ctx.createLinearGradient(m.x, m.y, tx, ty);
+    g.addColorStop(0, `rgba(255,255,255,${0.9 * m.life})`);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.strokeStyle = g; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(tx, ty); ctx.stroke();
+    ctx.globalAlpha = m.life; ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(m.x, m.y, 1.7, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  };
+
+  const drawExtras = () => {
+    // shooting stars
+    ctx.lineCap = 'round';
+    for (const m of meteors) drawMeteor(m);
+  };
+
+  // ---- pop stats (accuracy / time / clicks) ----
+  const statsEl = document.getElementById('stats');
+  const accEl = document.getElementById('st-acc');
+  const timeEl = document.getElementById('st-time');
+  const clicksEl = document.getElementById('st-clicks');
+  const stats = { active: false, visible: false, clicks: 0, hits: 0, startT: 0, endT: 0 };
+  const startStats = () => {
+    stats.active = true; stats.visible = true;
+    stats.clicks = 0; stats.hits = 0; stats.startT = performance.now(); stats.endT = 0;
+  };
+  const renderStats = () => {
+    if (!stats.visible) return;
+    if (statsEl && !statsEl.classList.contains('show')) statsEl.classList.add('show');
+    const t = (stats.active ? performance.now() : stats.endT) - stats.startT;
+    const acc = stats.clicks ? Math.round(stats.hits / stats.clicks * 100) : 100;
+    if (accEl) accEl.textContent = acc + '%';
+    if (timeEl) timeEl.textContent = (t / 1000).toFixed(1) + 's';
+    if (clicksEl) clicksEl.textContent = stats.clicks;
+  };
+
+  let raf = 0;
+  const loop = () => { step(); draw(); renderStats(); raf = requestAnimationFrame(loop); };
+  const start = () => { if (!raf) raf = requestAnimationFrame(loop); };
+  const stop = () => { if (raf) { cancelAnimationFrame(raf); raf = 0; } };
+
+  // ---- input ----
+  addEventListener('wheel', (e) => {
+    e.preventDefault();
+    zoomTarget += -e.deltaY * 0.0016;
+    zoomTarget = Math.max(-1.4, Math.min(2.4, zoomTarget));
+  }, { passive: false });
+
+  addEventListener('pointermove', (e) => {
+    mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true;
+    cur.style.transform = `translate(${e.clientX}px,${e.clientY}px)`;
+    cur.style.opacity = '1';
+  });
+  addEventListener('pointerleave', () => { mouse.active = false; cur.style.opacity = '0'; });
+
+  addEventListener('pointerdown', (e) => {
+    activePointers.add(e.pointerId);
+    // single primary pointer = a tap/click -> spawn; ignore extra pinch fingers
+    if (e.isPrimary && activePointers.size === 1) {
+      mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true;
+      const ballsPresent = globs.length > 0;
+      const hit = hitGlob(e.clientX, e.clientY);          // paint first
+      if (!hit) spawn(e.clientX, e.clientY);              // else firework
+      if (ballsPresent) {                                 // a round is live while pink is in the room
+        if (!stats.active) startStats();
+        stats.clicks++;
+        if (hit) stats.hits++;
+      }
+    }
+  });
+  const dropPointer = (e) => activePointers.delete(e.pointerId);
+  addEventListener('pointerup', dropPointer);
+  addEventListener('pointercancel', dropPointer);
+
+  // touch: pinch -> zoom, single drag -> cursor force
+  let pinch0 = 0;
+  addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) pinch0 = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+  }, { passive: true });
+  addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2) {
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      zoomTarget += (d - pinch0) * 0.004; pinch0 = d;
+      zoomTarget = Math.max(-1.4, Math.min(2.4, zoomTarget));
+    } else if (e.touches.length === 1) {
+      mouse.x = e.touches[0].clientX; mouse.y = e.touches[0].clientY; mouse.active = true;
+    }
+  }, { passive: true });
+  addEventListener('touchend', (e) => { if (e.touches.length === 0) mouse.active = false; }, { passive: true });
+
+  // hyperspace + black hole controls
+  addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'KeyH') { hyper = 1; e.preventDefault(); }
+  });
+  addEventListener('dblclick', () => { hyper = 1; });
+
+  addEventListener('resize', () => { measure(); seed(); });
+  document.addEventListener('visibilitychange', () => { document.hidden ? stop() : start(); });
+
+  measure(); seed(); start();
+})();
+</script>
+</body>
+</html>
