@@ -27,17 +27,13 @@
     display:flex; flex-direction:column; align-items:center; pointer-events:none; }
   #dock{ display:flex; gap:12px; pointer-events:none; }
 
-  /* dock icon buttons (stats + leaderboard) */
-  .dock-btn{ pointer-events:auto; cursor:pointer; width:48px; height:48px; border-radius:14px;
-    display:flex; align-items:center; justify-content:center;
-    background:rgba(255,255,255,0.10); -webkit-backdrop-filter:blur(14px) saturate(120%); backdrop-filter:blur(14px) saturate(120%);
-    border:1px solid rgba(255,255,255,0.22); color:#ffffff;
-    box-shadow:0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.30);
-    transition:transform .2s cubic-bezier(.16,1,.3,1), background .2s ease, box-shadow .2s ease; }
-  .dock-btn:hover{ transform:translateY(-2px); background:rgba(255,255,255,0.20);
-    box-shadow:0 12px 30px rgba(255,255,255,0.18), inset 0 1px 0 rgba(255,255,255,0.35); }
-  .dock-btn.active{ background:rgba(255,255,255,0.22); border-color:rgba(255,255,255,0.40); }
-  .dock-btn svg{ width:24px; height:24px; display:block; }
+  /* dock icon buttons (stats + leaderboard) — bare icons, no container */
+  .dock-btn{ pointer-events:auto; cursor:pointer; width:48px; height:48px;
+    display:flex; align-items:center; justify-content:center; color:#ffffff;
+    transition:transform .2s cubic-bezier(.16,1,.3,1), color .2s ease; }
+  .dock-btn:hover{ transform:translateY(-2px); color:#ff3ee6; }
+  .dock-btn.active{ color:#ff3ee6; }
+  .dock-btn svg{ width:27px; height:27px; display:block; }
 
   /* pop stats popover (toggled by the stats icon) */
   #stats{ position:absolute; bottom:calc(100% + 12px); left:50%;
