@@ -20,6 +20,11 @@
     border-radius:50%; pointer-events:none; mix-blend-mode:screen;
     background:radial-gradient(circle, rgba(255,255,255,.10) 0%, rgba(255,255,255,.04) 40%, transparent 70%);
     transition:opacity .4s ease; opacity:0; }
+  /* small crosshair at the exact cursor point */
+  #cur::before, #cur::after{ content:''; position:absolute; top:50%; left:50%;
+    background:rgba(255,255,255,.85); transform:translate(-50%,-50%); }
+  #cur::before{ width:13px; height:1.5px; }
+  #cur::after{ width:1.5px; height:13px; }
   @media (hover:none){ body{ cursor:auto } #cur{ display:none } }
 
   /* bottom-center HUD: icon dock with the stats popover floating above it */
