@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#000000" />
-<title>starfield</title>
+<title>tx</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet" />
@@ -27,29 +27,23 @@
   #cur::after{ width:1.5px; height:13px; }
   @media (hover:none){ body{ cursor:auto } #cur{ display:none } }
 
-  /* bottom-center HUD: icon dock with the stats popover floating above it */
+  /* bottom-center HUD: tab row (dock) with the stats panel above it; side by side on mobile */
   #hud{ position:fixed; left:50%; bottom:clamp(14px,2.5vh,28px); transform:translateX(-50%); z-index:5;
+    width:max-content; max-width:calc(100vw - 32px);
     display:flex; flex-direction:column; align-items:center; pointer-events:none; }
-  #dock{ display:flex; gap:12px; pointer-events:none; }
+  #dock{ display:flex; align-items:center; gap:12px; pointer-events:none; }
 
-  /* dock icon buttons (stats + leaderboard) — bare icons, no container */
-  .dock-btn{ pointer-events:auto; cursor:pointer; width:48px; height:48px;
-    display:flex; align-items:center; justify-content:center; color:#ffffff;
-    transition:transform .2s cubic-bezier(.16,1,.3,1), color .2s ease; }
-  .dock-btn:hover{ transform:translateY(-2px); color:#ff3ee6; }
-  .dock-btn.active{ color:#ff3ee6; }
-  .dock-btn svg{ width:27px; height:27px; display:block; }
-
-  /* pop stats popover (toggled by the stats icon) */
+  /* pop stats panel: starts minimized (accuracy only); clicking it maximizes it */
   #stats{ position:absolute; bottom:calc(100% + 12px); left:50%;
     font:11px/1.55 ui-monospace,'SF Mono',Menlo,Consolas,monospace;
     letter-spacing:.12em; text-transform:uppercase; color:#ffffff;
     background:rgba(255,255,255,0.10); -webkit-backdrop-filter:blur(14px) saturate(120%); backdrop-filter:blur(14px) saturate(120%);
-    border:1px solid rgba(255,255,255,0.22); border-radius:13px; padding:12px 15px; min-width:178px;
-    box-shadow:0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.30);
-    opacity:0; transform:translateX(-50%) translateY(10px); transform-origin:bottom center;
-    transition:opacity .35s ease, transform .35s cubic-bezier(.16,1,.3,1); pointer-events:none; }
-  #stats.show{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
+    border:1px solid #ff1f5b; border-radius:13px; padding:12px 15px; min-width:178px;
+    box-shadow:0 0 6px rgba(255,31,91,0.9), 0 0 18px rgba(255,31,91,0.45), inset 0 0 10px rgba(255,31,91,0.25);
+    transform:translateX(-50%); pointer-events:auto; cursor:pointer; }
+  #stats:not(.max){ min-width:0; padding:7px 13px; white-space:nowrap; }
+  #stats:not(.max) .title, #stats:not(.max) .srow:not(.acc){ display:none; }
+  #hud:has(#shop.open) #stats.max{ visibility:hidden; }   /* the Links menu opens over the full panel */
   #stats .title{ color:#ffffff; letter-spacing:.26em; font-size:10px; opacity:.95; margin:0 0 9px; }
   #stats .srow{ display:flex; justify-content:space-between; gap:22px; }
   #stats .srow span{ color:rgba(255,255,255,0.72); }
@@ -116,34 +110,53 @@
   /* on narrow screens the centered dock owns the bottom — hide the corner credit */
   @media (max-width:640px){ #credit{ display:none; } }
 
-  /* shop icon (bare — no container) + store menu */
+  /* leaderboard + link buttons across the dock (desktop) */
+  #links{ display:flex; flex-wrap:wrap; justify-content:center; gap:10px; pointer-events:none; }
+  #links > *{ pointer-events:auto; cursor:pointer; font-family:'Orbitron',ui-monospace,monospace; font-weight:700; font-size:11px;
+    letter-spacing:.16em; text-transform:uppercase; white-space:nowrap; color:#ffffff; text-decoration:none;
+    padding:10px 14px; border:1px solid #ff1f5b; border-radius:10px; background:rgba(0,0,0,0.35);
+    box-shadow:0 0 6px rgba(255,31,91,0.7), inset 0 0 8px rgba(255,31,91,0.2);
+    transition:background .2s ease, box-shadow .2s ease, transform .2s cubic-bezier(.16,1,.3,1); }
+  #links > *:hover{ background:rgba(255,31,91,0.16); box-shadow:0 0 12px rgba(255,31,91,0.9), inset 0 0 10px rgba(255,31,91,0.35); transform:translateY(-2px); }
+
+  /* Links tab + its menu, used on mobile; styled to match the stats pill */
   #shop{ position:relative; display:flex; align-items:center; justify-content:center; pointer-events:none; }
-  #shop-btn{ pointer-events:auto; cursor:pointer; width:48px; height:48px;
-    display:flex; align-items:center; justify-content:center; color:#ffffff;
-    transition:transform .2s cubic-bezier(.16,1,.3,1), color .2s ease; }
-  #shop-btn:hover{ transform:translateY(-2px); color:#ff3ee6; }
-  #shop.open #shop-btn{ color:#ff3ee6; }
-  #shop-btn svg{ width:27px; height:27px; display:block; }
-  #shop-menu{ position:absolute; bottom:calc(100% + 16px); left:50%;
-    display:flex; flex-direction:column; align-items:center; gap:14px; white-space:nowrap;
-    opacity:0; transform:translateX(-50%) translateY(8px); pointer-events:none;
-    transition:opacity .3s ease, transform .3s cubic-bezier(.16,1,.3,1); }
-  #shop.open #shop-menu{ opacity:1; transform:translateX(-50%) translateY(0); pointer-events:auto; }
-  #shop-menu a{ font-family:'Orbitron',ui-monospace,monospace; font-weight:700; font-size:13px;
-    letter-spacing:.18em; text-transform:uppercase; color:#ff3ee6; text-decoration:none;
-    text-shadow:0 0 18px rgba(255,62,230,0.5);
+  #shop-btn{ pointer-events:auto; cursor:pointer; white-space:nowrap;
+    font:11px/1.55 ui-monospace,'SF Mono',Menlo,Consolas,monospace; letter-spacing:.12em; text-transform:uppercase; color:#ffffff;
+    background:rgba(255,255,255,0.10); -webkit-backdrop-filter:blur(14px) saturate(120%); backdrop-filter:blur(14px) saturate(120%);
+    border:1px solid #ff1f5b; border-radius:13px; padding:7px 13px;
+    box-shadow:0 0 6px rgba(255,31,91,0.9), 0 0 18px rgba(255,31,91,0.45), inset 0 0 10px rgba(255,31,91,0.25);
+    transition:background .2s ease; }
+  #shop-btn:hover, #shop.open #shop-btn{ background:rgba(255,31,91,0.18); }
+  #shop-menu{ position:absolute; bottom:calc(100% + 16px); right:0;   /* the tab is rightmost: grow leftward */
+    display:flex; flex-direction:column; align-items:flex-end; gap:14px; width:max-content; max-width:260px; text-align:right;
+    opacity:0; visibility:hidden; transform:translateY(8px); pointer-events:none;
+    transition:opacity .3s ease, transform .3s cubic-bezier(.16,1,.3,1), visibility .3s; }
+  #shop.open #shop-menu{ opacity:1; visibility:visible; transform:translateY(0); pointer-events:auto; }
+  #shop-menu > *{ background:none; border:0; padding:0; cursor:pointer; font-family:'Orbitron',ui-monospace,monospace; font-weight:700; font-size:13px;
+    letter-spacing:.18em; text-transform:uppercase; color:#ff1f5b; text-decoration:none;
+    text-shadow:0 0 18px rgba(255,31,91,0.5);
     transition:color .2s ease, text-shadow .2s ease, transform .15s ease; }
-  #shop-menu a:hover{ color:#ff8df0; text-shadow:0 0 26px rgba(255,62,230,0.85); transform:scale(1.06); }
+  #shop-menu > *:hover{ color:#ff8fad; text-shadow:0 0 26px rgba(255,31,91,0.85); transform:scale(1.06); }
+
+  /* mobile: the stats pill and a Links tab sit side by side; the buttons fold into the Links menu */
+  @media (max-width:640px){
+    #hud{ flex-direction:row; align-items:flex-end; gap:10px; }
+    #stats{ position:static; transform:none; }
+    #links{ display:none; }
+  }
+  @media not all and (max-width:640px){ #shop{ display:none; } }
 
   /* ---------- polish: focus, reduced-motion, touch, scrollbars ---------- */
   /* keyboard focus rings (shown for keyboard nav, not mouse/touch) */
-  .dock-btn:focus-visible, #shop-btn:focus-visible{
-    outline:2px solid rgba(255,62,230,.75); outline-offset:4px; border-radius:11px; color:#ff3ee6; }
+  #shop-btn:focus-visible{ outline:2px solid rgba(255,31,91,.75); outline-offset:3px; }
+  #stats:focus-visible{ outline:2px solid rgba(255,31,91,.75); outline-offset:3px; }
   #lb-close:focus-visible, #lb-submit:focus-visible{
     outline:2px solid rgba(255,255,255,.75); outline-offset:2px; }
   #lb-form input:focus-visible{ box-shadow:0 0 0 3px rgba(255,255,255,.12); }
-  #shop-menu a:focus-visible{ outline:none; color:#ff8df0;
-    text-shadow:0 0 26px rgba(255,62,230,.85); text-decoration:underline; text-underline-offset:5px; }
+  #links > *:focus-visible{ outline:2px solid rgba(255,31,91,.75); outline-offset:3px; }
+  #shop-menu > *:focus-visible{ outline:none; color:#ff8fad;
+    text-shadow:0 0 26px rgba(255,31,91,.85); text-decoration:underline; text-underline-offset:5px; }
   #credit:focus-visible{ outline:2px solid rgba(255,255,255,.6); outline-offset:2px; color:#fff; }
 
   /* slim modal scrollbar */
@@ -154,15 +167,15 @@
 
   /* touch: roomier tap targets, no sticky hover-lift after a tap */
   @media (hover:none){
-    .dock-btn:hover, #shop-btn:hover, #credit:hover{ transform:none; }
-    #shop-menu a{ padding:8px 12px; }
+    #links > *:hover, #credit:hover{ transform:none; }
+    #shop-menu > *{ padding:8px 12px; }
   }
 
   /* honour reduced-motion for UI transitions (canvas motion is already reduced) */
   @media (prefers-reduced-motion: reduce){
-    #stats, #lb-card, #shop-menu, .dock-btn, #shop-btn, #credit,
+    #stats, #lb-card, #shop-menu, #shop-btn, #links > *, #credit,
     #lb-submit, #lb-close, #cur, #lb-form input{ transition-duration:.01ms !important; }
-    .dock-btn:hover, #shop-btn:hover, .dock-btn:focus-visible, #shop-btn:focus-visible{ transform:none !important; }
+    #links > *:hover{ transform:none !important; }
   }
 </style>
 </head>
@@ -173,37 +186,20 @@
   <a id="credit" class="ui" href="https://fantomlabs.io" target="_blank" rel="noopener">fantomlabs.io</a>
 
   <div id="hud">
-    <div id="stats" class="ui">
+    <div id="stats" class="ui" role="button" tabindex="0" aria-label="Pop stats" aria-expanded="false">
       <div class="title">Pop Stats</div>
-      <div class="srow"><span>Accuracy</span><b id="st-acc">100%</b></div>
+      <div class="srow acc"><span>Accuracy</span><b id="st-acc">100%</b></div>
       <div class="srow"><span>Time</span><b id="st-time">0.0s</b></div>
       <div class="srow"><span>Clicks</span><b id="st-clicks">0</b></div>
       <div class="srow"><span>Score</span><b id="st-score">0</b></div>
       <div class="srow"><span>Rating</span><b id="st-rate" class="stars">☆☆☆☆☆</b></div>
     </div>
     <div id="dock">
-      <div id="stats-btn" class="dock-btn ui" role="button" tabindex="0" aria-label="Stats" title="Stats" aria-haspopup="true" aria-expanded="false">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="6" y1="20" x2="6" y2="13"/><line x1="12" y1="20" x2="12" y2="7"/><line x1="18" y1="20" x2="18" y2="11"/>
-        </svg>
-      </div>
-      <div id="lb-btn" class="dock-btn ui" role="button" tabindex="0" aria-label="Leaderboard" title="Leaderboard">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4z"/>
-          <path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>
-        </svg>
-      </div>
       <div id="shop" class="ui">
         <div id="shop-menu"></div>
-        <div id="shop-btn" role="button" tabindex="0" aria-label="Shop" title="Shop" aria-haspopup="true" aria-expanded="false">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 9l1.6-5h14.8L21 9"/>
-            <path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9"/>
-            <path d="M3 9a3 3 0 0 0 6 0 3 3 0 0 0 6 0 3 3 0 0 0 6 0"/>
-            <path d="M9.5 20v-5h5v5"/>
-          </svg>
-        </div>
+        <div id="shop-btn" role="button" tabindex="0" aria-haspopup="true" aria-expanded="false">Links</div>
       </div>
+      <nav id="links" class="ui" aria-label="Links"></nav>
     </div>
   </div>
 
@@ -235,29 +231,30 @@
   //  (an object with any of these keys) before this script runs.
   // ============================================================
   const DEFAULTS = {
-    pageTitle:        'starfield',   // browser tab title
+    pageTitle:        'tx',          // browser tab title
     starCountDesktop: 1750,          // stars on >=768px viewports
     starCountMobile:  1000,          // stars on  <768px viewports
-    burstColor:       '#ba60ff',     // colour of the click spray (fades to white)
-    enableStats:      true,          // show the stats dock icon + panel
-    enableLeaderboard:true,          // show the leaderboard dock icon + modal
+    burstColor:       '#ff1f5b',     // colour of the click spray (fades to white)
+    enableStats:      true,          // show the stats panel
+    enableLeaderboard:true,          // show the leaderboard tab + modal
     prizeText:        'Top scores this month · monthly winner emailed a prize',
     apiEndpoint:      '/api/leaderboard', // backend route (optional; localStorage fallback otherwise)
     showCredit:       false,              // small credit link, bottom-right
     creditText:       'fantomlabs.io',
     creditUrl:        'https://fantomlabs.io',
-    enableShop:       true,               // bare shop icon + store menu in the dock
+    enableShop:       true,               // link buttons in the dock (a Links menu on mobile)
     shopItems: [
       { label: 'OPERATE AI',  url: 'https://operateai.com.au' },
       { label: 'FANTOM LABS', url: 'https://fantomlabs.io' },
-      { label: 'GUMROAD',     url: 'https://operateai.gumroad.com/' },
+      { label: 'GUMROAD',     url: 'https://fantomlabs.gumroad.com/' },
+      { label: "WORLD'S MOST SECURE MESSAGING APP", url: 'https://silnt.net' },
     ],
   };
   const CONFIG = Object.assign({}, DEFAULTS, (window.StarfieldPopConfig || {}));
   document.title = CONFIG.pageTitle;
   const hexToRgb = (h) => {
     const m = /^#?([0-9a-f]{6})$/i.exec(String(h || ''));
-    if (!m) return { r: 186, g: 96, b: 255 };
+    if (!m) return { r: 255, g: 31, b: 91 };
     const n = parseInt(m[1], 16);
     return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
   };
@@ -385,7 +382,7 @@
         s.ovx *= 0.99; s.ovy *= 0.99;            // light air-drag only
       }
       // field stars carry no offset; the cursor interaction is the gravitational lens at draw time
-      if (s.tint) s.tint *= 0.985;   // #ff3ee6 -> white as it streaks out
+      if (s.tint) s.tint *= 0.985;   // burstColor -> white as it streaks out
 
       // on recycle, a still-flying spark resets cleanly and rejoins the field
       if (!s.visible) {
@@ -521,22 +518,22 @@
 
     const lxh = b.x - R * 0.32, lyh = b.y - R * 0.4;   // light from upper-left
 
-    // soft pink bloom
+    // soft red-pink bloom
     ctx.globalCompositeOperation = 'lighter';
     const halo = ctx.createRadialGradient(b.x, b.y, R * 0.5, b.x, b.y, R * 1.7);
-    halo.addColorStop(0, 'rgba(255,62,230,0.28)');
-    halo.addColorStop(1, 'rgba(255,62,230,0)');
+    halo.addColorStop(0, 'rgba(255,31,91,0.28)');
+    halo.addColorStop(1, 'rgba(255,31,91,0)');
     ctx.fillStyle = halo;
     ctx.beginPath(); ctx.arc(b.x, b.y, R * 1.7, 0, TAU); ctx.fill();
     ctx.globalCompositeOperation = 'source-over';
 
     // glossy body
     const g = ctx.createRadialGradient(lxh, lyh, R * 0.04, b.x, b.y, R * 1.18);
-    g.addColorStop(0, '#ffe2fb');
-    g.addColorStop(0.16, '#ff95f1');
-    g.addColorStop(0.5, '#ff3ee6');
-    g.addColorStop(0.82, '#c730b3');
-    g.addColorStop(1, '#8c227e');
+    g.addColorStop(0, '#ffe2ea');
+    g.addColorStop(0.16, '#ff8fad');
+    g.addColorStop(0.5, '#ff1f5b');
+    g.addColorStop(0.82, '#c71847');
+    g.addColorStop(1, '#8c1132');
     ctx.fillStyle = g; ctx.fill(path);
 
     // wet highlights, clipped to the body
@@ -544,7 +541,7 @@
     ctx.globalCompositeOperation = 'lighter';
     const hl = ctx.createRadialGradient(lxh, lyh, 0, lxh, lyh, R * 0.62);
     hl.addColorStop(0, 'rgba(255,255,255,0.85)');
-    hl.addColorStop(0.45, 'rgba(255,240,250,0.22)');
+    hl.addColorStop(0.45, 'rgba(255,240,244,0.22)');
     hl.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = hl;
     ctx.save(); ctx.translate(lxh, lyh); ctx.rotate(-0.5); ctx.scale(1, 0.7);
@@ -557,8 +554,8 @@
     ctx.beginPath(); ctx.arc(gx, gy, R * 0.18, 0, TAU); ctx.fill();
     const rlx = b.x + R * 0.42, rly = b.y + R * 0.5;
     const rl = ctx.createRadialGradient(rlx, rly, 0, rlx, rly, R * 0.7);
-    rl.addColorStop(0, 'rgba(255,150,238,0.5)');
-    rl.addColorStop(1, 'rgba(255,150,238,0)');
+    rl.addColorStop(0, 'rgba(255,143,173,0.5)');
+    rl.addColorStop(1, 'rgba(255,143,173,0)');
     ctx.fillStyle = rl;
     ctx.beginPath(); ctx.arc(rlx, rly, R * 0.7, 0, TAU); ctx.fill();
     ctx.restore();
@@ -569,7 +566,7 @@
     for (const d of drops) {
       ctx.globalAlpha = Math.max(0, d.life);
       const g = ctx.createRadialGradient(d.x - d.r * 0.3, d.y - d.r * 0.3, 0, d.x, d.y, d.r);
-      g.addColorStop(0, '#ffd6f9'); g.addColorStop(0.5, '#ff3ee6'); g.addColorStop(1, '#a81f97');
+      g.addColorStop(0, '#ffd6e1'); g.addColorStop(0.5, '#ff1f5b'); g.addColorStop(1, '#a8143c');
       ctx.fillStyle = g;
       ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, TAU); ctx.fill();
     }
@@ -666,7 +663,7 @@
         y: (py - dims.cy) * z / ratio,
         z, sx: 0, sy: 0, px: 0, py: 0,
         ox: 0, oy: 0, ovx: Math.cos(ang) * spd, ovy: Math.sin(ang) * spd,
-        tint: 1,                                          // #ba60ff at birth, fades to white as it settles
+        tint: 1,                                          // burstColor at birth, fades to white as it settles
         tw: Math.random() * Math.PI * 2,
         spark: true,                                      // firework: ignores the cursor until it lands
         visible: true,
@@ -705,17 +702,20 @@
   const timeEl = document.getElementById('st-time');
   const clicksEl = document.getElementById('st-clicks');
   const stats = { active: false, visible: false, clicks: 0, hits: 0, startT: 0, endT: 0 };
+  const roundScore = (hits, clicks) => hits - (clicks - hits);   // +1 per hit, -1 per miss
   const startStats = () => {
     stats.active = true; stats.visible = true;
     stats.clicks = 0; stats.hits = 0; stats.startT = performance.now(); stats.endT = 0;
+    if (rateEl) rateEl.textContent = starStr(0);   // rating is set when the round ends
   };
   const renderStats = () => {
-    if (!stats.visible) return;                  // numbers are live; the panel itself is toggled by the stats icon
+    if (!stats.visible) return;                  // nothing to update until the first round starts
     const t = (stats.active ? performance.now() : stats.endT) - stats.startT;
     const acc = stats.clicks ? Math.round(stats.hits / stats.clicks * 100) : 100;
     if (accEl) accEl.textContent = acc + '%';
     if (timeEl) timeEl.textContent = (t / 1000).toFixed(1) + 's';
     if (clicksEl) clicksEl.textContent = stats.clicks;
+    if (scoreEl) scoreEl.textContent = roundScore(stats.hits, stats.clicks);
   };
 
   let raf = 0;
@@ -780,7 +780,7 @@
 
   // hyperspace + black hole controls
   addEventListener('keydown', (e) => {
-    if (/^(input|textarea|select)$/i.test(e.target && e.target.tagName)) return;   // don't hijack typing
+    if (/^(input|textarea|select)$/i.test(e.target && e.target.tagName) || onUI(e)) return;   // don't hijack typing or UI keys
     if (e.code === 'Space' || e.code === 'KeyH') { hyper = 1; e.preventDefault(); }
   });
   addEventListener('dblclick', (e) => { if (onUI(e)) return; hyper = 1; });
@@ -788,21 +788,15 @@
   addEventListener('resize', () => { measure(); seed(); });
   document.addEventListener('visibilitychange', () => { document.hidden ? stop() : start(); });
 
-  // ===== stats icon toggles the stats popover =====
-  const statsBtn = document.getElementById('stats-btn');
+  // ===== clicking the panel toggles minimized <-> full stats =====
   const toggleStats = () => {
-    const open = statsEl.classList.toggle('show');
-    if (statsBtn) {
-      statsBtn.classList.toggle('active', open);
-      statsBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
-    }
+    const open = statsEl.classList.toggle('max');
+    statsEl.setAttribute('aria-expanded', open ? 'true' : 'false');
   };
-  if (statsBtn) {
-    statsBtn.addEventListener('click', toggleStats);
-    statsBtn.addEventListener('keydown', (e) => {
-      if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); toggleStats(); }
-    });
-  }
+  statsEl.addEventListener('click', toggleStats);
+  statsEl.addEventListener('keydown', (e) => {
+    if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); toggleStats(); }
+  });
 
   // ===== rating + leaderboard =====
   const LB_API = CONFIG.apiEndpoint;
@@ -812,12 +806,12 @@
   const rateEl  = document.getElementById('st-rate');
   const starStr = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 
-  // Balanced rating: precision and speed weigh roughly equally.
-  // Tune these constants to reshape the leaderboard.
+  // Score is +1 per hit, -1 per miss (shown live in the stats panel). The star rating
+  // blends precision and speed; tune its tiers to reshape it.
   function computeScore(hits, clicks, timeMs) {
     const accuracy = clicks ? hits / clicks : 1;
     const timeSec = Math.max(0.001, timeMs / 1000);
-    const score = Math.max(0, Math.round(hits * 100 * Math.pow(accuracy, 1.5) - timeSec * 4));
+    const score = roundScore(hits, clicks);
     const speed = hits ? timeSec / hits : 99;          // seconds per pop — lower is better
     let r = 0;
     r += accuracy >= .95 ? 2.5 : accuracy >= .8 ? 2 : accuracy >= .6 ? 1.2 : accuracy >= .4 ? .6 : .2;
@@ -835,7 +829,6 @@
   }
 
   // ----- leaderboard UI -----
-  const lbBtn    = document.getElementById('lb-btn');
   const lbModal  = document.getElementById('lb-modal');
   const lbClose  = document.getElementById('lb-close');
   const lbList   = document.getElementById('lb-list');
@@ -849,13 +842,7 @@
   // ----- apply config (visibility + copy) -----
   const subEl = document.querySelector('#lb-card .sub');
   if (subEl) subEl.textContent = CONFIG.prizeText;
-  if (!CONFIG.enableStats) {
-    if (statsBtn) statsBtn.style.display = 'none';
-    if (statsEl)  statsEl.style.display = 'none';
-  }
-  if (!CONFIG.enableLeaderboard && lbBtn) lbBtn.style.display = 'none';
-  const dockEl = document.getElementById('dock');
-  if (dockEl && !CONFIG.enableStats && !CONFIG.enableLeaderboard) dockEl.style.display = 'none';
+  if (!CONFIG.enableStats) statsEl.style.display = 'none';
   const creditEl = document.getElementById('credit');
   if (creditEl) {
     if (CONFIG.showCredit) { creditEl.textContent = CONFIG.creditText; creditEl.href = CONFIG.creditUrl; }
@@ -876,7 +863,7 @@
       return;
     }
     lbYour.className = '';
-    lbYour.innerHTML = 'Your best · <b>' + lastRound.score + '</b> pts · ' +
+    lbYour.innerHTML = 'Your best · <b>' + Math.max(0, lastRound.score) + '</b> pts · ' +
       '<span class="stars">' + starStr(lastRound.stars) + '</span> · ' +
       Math.round(lastRound.accuracy * 100) + '% · ' + (lastRound.timeMs / 1000).toFixed(1) + 's';
     if (lbSubmit) lbSubmit.disabled = false;
@@ -925,12 +912,6 @@
     if (lbOpener && lbOpener.focus) lbOpener.focus();   // return focus to the opener
   };
 
-  if (lbBtn) {
-    lbBtn.addEventListener('click', openBoard);
-    lbBtn.addEventListener('keydown', (e) => {
-      if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); openBoard(); }
-    });
-  }
   if (lbClose) lbClose.addEventListener('click', closeBoard);
   if (lbModal) lbModal.addEventListener('click', (e) => { if (e.target === lbModal) closeBoard(); });
   addEventListener('keydown', (e) => { if (e.code === 'Escape') closeBoard(); });
@@ -945,7 +926,7 @@
 
     const entry = {
       username, email,
-      score: lastRound.score, stars: lastRound.stars,
+      score: Math.max(0, lastRound.score), stars: lastRound.stars,
       accuracy: +lastRound.accuracy.toFixed(4),
       timeMs: Math.round(lastRound.timeMs),
       clicks: lastRound.clicks, hits: lastRound.hits,
@@ -973,18 +954,26 @@
     loadBoard();
   });
 
-  // ===== shop menu =====
+  // ===== tabs: leaderboard + links as dock buttons (desktop) or a Links menu (mobile) =====
   const shopEl   = document.getElementById('shop');
   const shopBtn  = document.getElementById('shop-btn');
   const shopMenu = document.getElementById('shop-menu');
+  const linksEl  = document.getElementById('links');
   if (shopEl) {
-    if (CONFIG.enableShop && Array.isArray(CONFIG.shopItems) && CONFIG.shopItems.length) {
-      shopMenu.innerHTML = CONFIG.shopItems.map((it) =>
-        `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.label)}</a>`).join('');
+    const links = CONFIG.enableShop && Array.isArray(CONFIG.shopItems) ? CONFIG.shopItems : [];
+    const tabsHtml = (CONFIG.enableLeaderboard ? '<button type="button" data-lb>Leaderboard</button>' : '') +
+      links.map((it) => `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.label)}</a>`).join('');
+    if (tabsHtml) {
+      shopMenu.innerHTML = linksEl.innerHTML = tabsHtml;
       const setShop = (open) => {
         shopEl.classList.toggle('open', open);
         shopBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
       };
+      for (const el of [linksEl, shopMenu]) el.addEventListener('click', (e) => {
+        if (!e.target.closest('[data-lb]')) return;
+        if (el === shopMenu) { setShop(false); shopBtn.focus(); }   // modal hands focus back to the visible tab
+        openBoard();
+      });
       shopBtn.addEventListener('click', (e) => { e.stopPropagation(); setShop(!shopEl.classList.contains('open')); });
       shopBtn.addEventListener('keydown', (e) => {
         if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); setShop(!shopEl.classList.contains('open')); }
@@ -993,8 +982,10 @@
         if (shopEl.classList.contains('open') && !shopEl.contains(e.target)) setShop(false);
       });
       addEventListener('keydown', (e) => { if (e.code === 'Escape' && shopEl.classList.contains('open')) setShop(false); });
+      addEventListener('resize', () => setShop(false));   // the menu only exists on mobile widths
     } else {
       shopEl.style.display = 'none';
+      linksEl.style.display = 'none';
     }
   }
 

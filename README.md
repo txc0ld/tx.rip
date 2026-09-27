@@ -28,15 +28,16 @@ That's it — the front-end already calls `/api/leaderboard`.
 
 ## Scoring
 
-A round = clearing every pink glob (they split when popped). On clear, the page rates the round:
+A round = clearing every pink glob (they split when popped). The Score row in the
+stats panel tracks it live: each hit adds a point, each miss takes one away.
 
 ```
+score    = hits - misses
 accuracy = hits / clicks
-score    = round( hits * 100 * accuracy^1.5 - seconds * 4 )
 stars    = blend( accuracy tier, seconds-per-pop tier ) -> 1..5
 ```
 
-Tweak the constants in `computeScore()` inside `index.html` to reshape the board.
+Tweak `roundScore()` and `computeScore()` inside `index.html` to reshape the board.
 
 ## Monthly prize
 
